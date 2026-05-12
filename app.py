@@ -1,13 +1,49 @@
 import os
-from groq import Groq
-from textblob import TextBlob
 import streamlit as st
-import time
 import subprocess
 import sys
+import time
+
+# Ensure required packages are installed
+def ensure_packages():
+    """Install required packages if missing"""
+    packages = {
+        "groq": "groq",
+        "textblob": "textblob"
+    }
+    
+    missing = []
+    for package, import_name in packages.items():
+        try:
+            __import__(import_name)
+        except ImportError:
+            missing.append(package)
+    
+    if missing:
+        st.warning(f"📦 Installing missing packages: {', '.join(missing)}")
+        for package in missing:
+            try:
+                subprocess.check_call([sys.executable, "-m", "pip", "install", package, "-q"])
+                st.success(f"✅ {package} installed!")
+            except Exception as e:
+                st.error(f"❌ Failed to install {package}: {str(e)}")
+        
+        # Reload the page after installation
+        st.rerun()
+
+# Install packages first
+ensure_packages()
+
+# Now import after packages are guaranteed to exist
+from groq import Groq
+from textblob import TextBlob
 
 # Securely load your Groq API key (FREE)
-client = Groq(api_key=st.secrets["GROQ_API_KEY"])
+try:
+    client = Groq(api_key=st.secrets["GROQ_API_KEY"])
+except KeyError:
+    st.error("❌ Missing GROQ_API_KEY in secrets. Please add it to .streamlit/secrets.toml")
+    st.stop()
 
 st.set_page_config(page_title="Epistemic News Engine", layout="wide")
 st.title("📰 AUTHENTIC NEWSROOM - GONDWE APP")
@@ -33,40 +69,33 @@ with st.expander("⚙️ Setup Instructions"):
     - Sign up for free
     - Create an API key
     
-    ### 2. Install Required Packages
-    Run these commands:
-    """)
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.code("pip install groq", language="bash")
-        if st.button("📦 Install Groq Package"):
-            try:
-                subprocess.check_call([sys.executable, "-m", "pip", "install", "groq"])
-                st.success("✅ Groq package installed!")
-            except Exception as e:
-                st.error(f"❌ Error: {str(e)}")
-    
-    with col2:
-        st.code("pip install textblob", language="bash")
-        if st.button("📦 Install TextBlob Package"):
-            try:
-                subprocess.check_call([sys.executable, "-m", "pip", "install", "textblob"])
-                st.success("✅ TextBlob package installed!")
-            except Exception as e:
-                st.error(f"❌ Error: {str(e)}")
-    
-    st.markdown("""
-    ### 3. Add Your API Key to Streamlit Secrets
-    Create/edit `.streamlit/secrets.toml`:
+    ### 2. Add Your API Key to Streamlit Secrets
+    Create/edit `.streamlit/secrets.toml` in your project folder:
     """)
     st.code('GROQ_API_KEY = "your-groq-api-key-here"', language="toml")
+    
+    st.markdown("Then restart your Streamlit app.")
+    
+    st.markdown("""
+    ### Required Packages
+    The app will automatically install:
+    - `groq` - For AI analysis
+    - `textblob` - For sentiment analysis
+    
+    (No manual installation needed!)
+    """)
 
 # INPUT SECTION
-location = st.text_input("Enter Location (City, Country)")
-audience = st.selectbox("Select Audience Type", ["Local", "Diaspora", "Academic", "Government", "General Public"])
-story_input = st.text_area("Paste News Story Here:", height=300)
+st.subheader("📝 Analyze Your News Story")
+col1, col2 = st.columns(2)
+
+with col1:
+    location = st.text_input("Enter Location (City, Country)")
+
+with col2:
+    audience = st.selectbox("Select Audience Type", ["Local", "Diaspora", "Academic", "Government", "General Public"])
+
+story_input = st.text_area("Paste News Story Here:", height=300, placeholder="Enter your news story text here...")
 
 def call_groq_with_retry(prompt, max_tokens=300, max_retries=3):
     """Call Groq API with retry logic for rate limits"""
@@ -91,7 +120,7 @@ def call_groq_with_retry(prompt, max_tokens=300, max_retries=3):
                 st.error(f"❌ **Error**: {str(e)[:200]}")
                 return None
 
-if st.button("Analyze Story") and story_input:
+if st.button("🔍 Analyze Story", use_container_width=True) and story_input:
     with st.spinner("Analyzing... Please wait"):
         # NEWS VALUE ESTIMATION
         prompt = f"""
@@ -160,4 +189,4 @@ Suggested sources:
         st.subheader("🔍 Fact-Checking Suggestions")
         st.write(fact_check)
 
-        st.success("✅ Analysis Complete.")
+        st.success("✅ Analysis Complete!")
