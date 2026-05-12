@@ -6,7 +6,7 @@ import time
 
 # Ensure required packages are installed
 def ensure_packages():
-    """Install required packages if missing"""
+    """Install required packages if missing with better error handling"""
     packages = {
         "groq": "groq",
         "textblob": "textblob"
@@ -23,10 +23,40 @@ def ensure_packages():
         st.warning(f"📦 Installing missing packages: {', '.join(missing)}")
         for package in missing:
             try:
-                subprocess.check_call([sys.executable, "-m", "pip", "install", package, "-q"])
-                st.success(f"✅ {package} installed!")
+                # First try with quiet mode
+                result = subprocess.run(
+                    [sys.executable, "-m", "pip", "install", package, "-q"],
+                    capture_output=True,
+                    text=True,
+                    timeout=120
+                )
+                
+                if result.returncode != 0:
+                    # If quiet mode fails, try with verbose output for debugging
+                    st.warning(f"Retrying {package} with verbose output...")
+                    result = subprocess.run(
+                        [sys.executable, "-m", "pip", "install", package, "--upgrade"],
+                        capture_output=True,
+                        text=True,
+                        timeout=120
+                    )
+                    
+                    if result.returncode != 0:
+                        error_msg = result.stderr if result.stderr else result.stdout
+                        st.error(f"❌ Failed to install {package}:\n```\n{error_msg}\n```")
+                        continue
+                
+                # Verify installation
+                try:
+                    __import__(import_name)
+                    st.success(f"✅ {package} installed successfully!")
+                except ImportError:
+                    st.error(f"❌ {package} installed but import still fails. Try restarting the app.")
+                    
+            except subprocess.TimeoutExpired:
+                st.error(f"❌ Installation of {package} timed out. Check your internet connection.")
             except Exception as e:
-                st.error(f"❌ Failed to install {package}: {str(e)}")
+                st.error(f"❌ Unexpected error installing {package}: {str(e)}")
         
         # Reload the page after installation
         st.rerun()
@@ -52,13 +82,13 @@ st.write("Upload a file or paste your news story below. The app will analyze it 
 # About this App Section
 with st.expander("ℹ️ About this App"):
     st.markdown("""
-    **Creator**: Dr. Gregory Gondwe, Assistant Professor of Journalism at California State University San Bernardino and Faculty Associate at the Harvard Berkman Klein Center for Internet & Society.  
+    **Creator**: Dr. Gregory Gondwe, Assistant Professor of Journalism at California State University San Bernardino and Faculty Associate at the Harvard Berkman Klein Center for Internet & Society.
 
-    **Purpose**: This app was born out of a concern for the growing perception that news is depressing, often because it focuses solely on tragedy and conflict while ignoring deeper, issue-based events.
+    **Purpose**: This app was born out of a concern for the growing perception that news is depressing, often because it focuses solely on tragedy and conflict while ignoring deeper, issue-based engagement.
 
-    The **Authentic Newsroom** empowers student journalists to assess the real impact of their stories before publishing. It helps ensure that news content is not just timely or dramatic, but meaningful and impactful.
+    The **Authentic Newsroom** empowers student journalists to assess the real impact of their stories before publishing. It helps ensure that news content is not just timely or dramatic, but meaningful.
 
-    This tool is especially valuable in college newsrooms where young reporters are learning not only how to report, but why they report. The goal is to help them produce journalism that informs, uplifts, and drives positive change.
+    This tool is especially valuable in college newsrooms where young reporters are learning not only how to report, but why they report. The goal is to help them produce journalism that informs, enlightens, and engages.
     """)
 
 # SETUP SECTION
