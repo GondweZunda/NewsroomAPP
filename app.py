@@ -3,6 +3,8 @@ from groq import Groq
 from textblob import TextBlob
 import streamlit as st
 import time
+import subprocess
+import sys
 
 # Securely load your Groq API key (FREE)
 client = Groq(api_key=st.secrets["GROQ_API_KEY"])
@@ -22,6 +24,44 @@ with st.expander("ℹ️ About this App"):
 
     This tool is especially valuable in college newsrooms where young reporters are learning not only how to report, but why they report. The goal is to help them produce journalism that informs, uplifts, and drives positive change.
     """)
+
+# SETUP SECTION
+with st.expander("⚙️ Setup Instructions"):
+    st.markdown("""
+    ### 1. Get Free Groq API Key
+    - Visit: https://console.groq.com
+    - Sign up for free
+    - Create an API key
+    
+    ### 2. Install Required Packages
+    Run these commands:
+    """)
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.code("pip install groq", language="bash")
+        if st.button("📦 Install Groq Package"):
+            try:
+                subprocess.check_call([sys.executable, "-m", "pip", "install", "groq"])
+                st.success("✅ Groq package installed!")
+            except Exception as e:
+                st.error(f"❌ Error: {str(e)}")
+    
+    with col2:
+        st.code("pip install textblob", language="bash")
+        if st.button("📦 Install TextBlob Package"):
+            try:
+                subprocess.check_call([sys.executable, "-m", "pip", "install", "textblob"])
+                st.success("✅ TextBlob package installed!")
+            except Exception as e:
+                st.error(f"❌ Error: {str(e)}")
+    
+    st.markdown("""
+    ### 3. Add Your API Key to Streamlit Secrets
+    Create/edit `.streamlit/secrets.toml`:
+    """)
+    st.code('GROQ_API_KEY = "your-groq-api-key-here"', language="toml")
 
 # INPUT SECTION
 location = st.text_input("Enter Location (City, Country)")
