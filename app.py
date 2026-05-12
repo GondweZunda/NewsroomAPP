@@ -6,7 +6,7 @@ import time
 
 # Ensure required packages are installed
 def ensure_packages():
-    """Install required packages if missing with better error handling"""
+    """Install required packages if missing with permission error handling"""
     packages = {
         "groq": "groq",
         "textblob": "textblob"
@@ -25,7 +25,7 @@ def ensure_packages():
             try:
                 # First try with quiet mode
                 result = subprocess.run(
-                    [sys.executable, "-m", "pip", "install", package, "-q"],
+                    [sys.executable, "-m", "pip", "install", package, "-q", "--user"],
                     capture_output=True,
                     text=True,
                     timeout=120
@@ -33,9 +33,9 @@ def ensure_packages():
                 
                 if result.returncode != 0:
                     # If quiet mode fails, try with verbose output for debugging
-                    st.warning(f"Retrying {package} with verbose output...")
+                    st.warning(f"Retrying {package} with enhanced options...")
                     result = subprocess.run(
-                        [sys.executable, "-m", "pip", "install", package, "--upgrade"],
+                        [sys.executable, "-m", "pip", "install", package, "--upgrade", "--no-cache-dir"],
                         capture_output=True,
                         text=True,
                         timeout=120
@@ -43,7 +43,40 @@ def ensure_packages():
                     
                     if result.returncode != 0:
                         error_msg = result.stderr if result.stderr else result.stdout
-                        st.error(f"❌ Failed to install {package}:\n```\n{error_msg}\n```")
+                        
+                        # Check for permission errors
+                        if "Permission denied" in error_msg or "[Errno 13]" in error_msg:
+                            st.error(f"""❌ **Permission Error**: Cannot write to site-packages
+                            
+**Solution**: Your virtual environment needs proper permissions. Try one of these:
+
+1. **Fix venv permissions** (Recommended):
+   ```bash
+   sudo chown -R $USER /home/adminuser/venv/lib/python3.13/site-packages
+   ```
+
+2. **Or reinstall venv**:
+   ```bash
+   rm -rf /home/adminuser/venv
+   python3 -m venv /home/adminuser/venv
+   source /home/adminuser/venv/bin/activate
+   pip install --upgrade pip
+   streamlit run app.py
+   ```
+
+3. **Or use --user flag** (temporary):
+   ```bash
+   source /home/adminuser/venv/bin/activate
+   pip install --user groq textblob
+   ```
+
+4. **Update pip first**:
+   ```bash
+   python3 -m pip install --upgrade pip setuptools wheel
+   ```
+                            """)
+                        else:
+                            st.error(f"❌ Failed to install {package}:\n```\n{error_msg}\n```")
                         continue
                 
                 # Verify installation
